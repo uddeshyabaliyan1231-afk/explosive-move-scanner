@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Explosive Move Scanner — CoinDCX Futures</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#121a2d;--line:#26334e;--text:#eef3ff;--muted:#98a7c4;--red:#f04452;--green:#2bd4a4;--amber:#ffc857}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top right,#1a2540,#0b1020 45%);font:15px system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text)}
+main{max-width:1100px;margin:auto;padding:22px 14px 50px}.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.logo{background:#3a1724;color:#ff6975;border:1px solid #803040;border-radius:13px;padding:12px;font-size:25px}.tag{font-size:12px;border:1px solid #33415e;border-radius:99px;padding:5px 9px;color:#c8d4ed}
+h1{font-size:clamp(23px,4vw,34px);margin:0}.sub{color:var(--muted);margin:7px 0 20px}.panel{background:#121a2de8;border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 12px 30px #0002}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}button{border:0;border-radius:10px;padding:13px 20px;font-weight:800;cursor:pointer;background:var(--red);color:white;font-size:15px}button:disabled{opacity:.55;cursor:wait}.hint{color:var(--muted);font-size:13px}.status{margin-top:12px;padding:10px 12px;border-radius:10px;background:#0d1425;color:#c6d4ee;border:1px solid var(--line);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}.metric{background:#0d1425;border:1px solid var(--line);padding:13px;border-radius:12px}.metric small{display:block;color:var(--muted);margin-bottom:5px}.metric b{font-size:18px}
+.conditions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.cond{background:#0d1425;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px}.cond b{color:#dce6ff}.cond span{display:block;color:var(--muted);margin-top:3px}
+.cards{display:grid;gap:12px}.coin{border:1px solid var(--line);border-radius:14px;background:#10182a;padding:15px}.coinhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.symbol{font-size:20px;font-weight:800}.price{font-weight:700;font-size:18px}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px;margin:13px 0}.stats small{display:block;color:var(--muted);font-size:11px;margin-bottom:3px}.stats b{font-size:14px}.pill{border-radius:99px;padding:5px 9px;font-size:11px;font-weight:800;white-space:nowrap}.pass{background:#103a35;color:#53e7bd}.wait{background:#3c3017;color:#ffd36a}.fail{background:#3d202b;color:#ff8b99}.empty{text-align:center;color:var(--muted);padding:30px 10px}.foot{font-size:12px;color:var(--muted);line-height:1.6}.loading{display:inline-block;width:12px;height:12px;border:2px solid #ffffff55;border-top-color:white;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}@keyframes spin{to{transform:rotate(360deg)}}a{color:#9cbaff}
+</style>
+</head>
+<body><main>
+<div class="top"><div class="logo">⚡</div><div><h1>EXPLOSIVE MOVE SCANNER</h1><div class="sub" style="margin:4px 0 0">CoinDCX Futures · breakout candidates only</div></div><span class="tag">MAX 5 COINS</span></div>
+<div class="panel">
+<div class="controls"><button id="scan">⚡ SCAN MARKET</button><span class="hint">One click · public market data · no trading/API keys</span></div>
+<div id="status" class="status">Ready. Press SCAN MARKET to fetch CoinDCX Futures data.</div>
+</div>
+<div class="grid">
+<div class="metric"><small>Exchange</small><b>CoinDCX Futures</b></div><div class="metric"><small>Volume threshold</small><b>200%+ average</b></div><div class="metric"><small>Maximum results</small><b>5 coins</b></div><div class="metric"><small>Entry confirmation</small><b>Candle close</b></div>
+</div>
+<div class="panel"><h3 style="margin:0 0 12px">Scanner conditions</h3><div class="conditions">
+<div class="cond">01 · <b>Top Volume Gainers</b><span>Volume leaders among active futures markets</span></div>
+<div class="cond">02 · <b>Top % Gainers</b><span>Positive 24-hour price change</span></div>
+<div class="cond">03 · <b>New Highs</b><span>Price testing/clearing recent candle highs</span></div>
+<div class="cond">04 · <b>Volume &gt; 200% average</b><span>Latest closed candle volume versus prior 20-candle average</span></div>
+<div class="cond">05 · <b>Consolidation under resistance</b><span>Recent candles range below a nearby high</span></div>
+<div class="cond">06 · <b>Volume spike</b><span>Breakout candle volume confirmation</span></div>
+<div class="cond">07 · <b>Close above resistance</b><span>Only confirmed candle closes qualify as breakout</span></div>
+</div></div>
+<div class="panel"><h3 style="margin:0 0 12px">Top matching coins</h3><div id="results" class="cards"><div class="empty">No scan run yet.</div></div></div>
+<div class="foot">Important: This is a screening tool, not an auto-trader. Signals depend on public API availability and candle data. It does not guarantee profit. Live data is routed through the companion backend proxy. It never places orders.</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(n)=>{if(!Number.isFinite(n))return '—';return n.toLocaleString('en-IN',{maximumFractionDigits:8})};
+const pct=(n)=>Number.isFinite(n)?`${n>=0?'+':''}${n.toFixed(2)}%`:'—';
+const status=(s)=>$('status').innerHTML=s;
+async function getJSON(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`HTTP ${r.status} from ${new URL(url).host}`);return r.json();}
+function num(v){const n=Number(v);return Number.isFinite(n)?n:0}
+function extractPrices(data){if(data?.prices)return Object.entries(data.prices).map(([pair,v])=>({pair,...v}));if(Array.isArray(data))return data;return Object.entries(data||{}).map(([pair,v])=>({pair,...v}));}
+async function getCandles(pair){const url=`/api/candles?pair=${encodeURIComponent(pair)}&resolution=5`;const d=await getJSON(url);return Array.isArray(d?.data)?d.data:(Array.isArray(d)?d:[]);}
+function analyze(candles,market){
+ const cs=[...candles].sort((a,b)=>num(a.time)-num(b.time));if(cs.length<25)return null;
+ // Exclude the currently forming candle; use only closed candles.
+ const now=Date.now();const closed=cs.filter(c=>num(c.time)<now-5*60*1000);if(closed.length<22)return null;
+ const last=closed[closed.length-1],prior=closed.slice(-22,-2),consolidation=closed.slice(-7,-2);
+ const avg=prior.reduce((s,c)=>s+num(c.volume),0)/Math.max(1,prior.length);
+ const volumeRatio=avg>0?num(last.volume)/avg:0;
+ const resistance=Math.max(...consolidation.map(c=>num(c.high)));
+ const recentHigh=Math.max(...closed.slice(-20,-1).map(c=>num(c.high)));
+ const underResistance=consolidation.length>=4 && num(consolidation[consolidation.length-1].close)<=resistance*1.005;
+ const volumeSpike=volumeRatio>=2;
+ const breakout=num(last.close)>resistance && num(last.close)>num(last.open);
+ const newHigh=num(last.close)>=recentHigh;
+ const price=num(market.ls ?? market.last_price ?? last.close);
+ const change=num(market.pc ?? market.change_24_hour);
+ const vol24=num(market.v ?? market.volume);
+ // Scoring is used only to rank candidate breakouts; all 3 breakout conditions must pass.
+ const passed=volumeSpike&&underResistance&&breakout;
+ return {pair:market.pair||market.market||'',price,change,vol24,resistance,volumeRatio,underResistance,volumeSpike,breakout,newHigh,passed,lastClose:num(last.close),time:num(last.time)};
+}
+async function scan(){
+ const btn=$('scan');btn.disabled=true;$('results').innerHTML='<div class="empty"><span class="loading"></span>Fetching market data and checking breakout candles…</div>';
+ try{
+  status('<span class="loading"></span>Fetching live CoinDCX Futures prices…');
+  const data=await getJSON('/api/prices');
+  const rows=extractPrices(data).filter(x=>(x.pair||'').includes('_USDT') || (x.mkt||'').endsWith('USDT'));
+  if(!rows.length)throw new Error('No USDT futures instruments were returned by the public endpoint.');
+  // Prioritize volume and positive price change, then inspect the best 35 to limit API requests.
+  rows.sort((a,b)=>(num(b.v)*Math.max(0.1,1+num(b.pc)/100))-(num(a.v)*Math.max(0.1,1+num(a.pc)/100)));
+  const candidates=rows.slice(0,35);
+  status(`Live prices received. Checking closed 5-minute candles for ${candidates.length} high-activity futures…`);
+  const out=[];
+  // Small batches to avoid hammering the public endpoint.
+  for(let i=0;i<candidates.length;i+=5){
+   const batch=candidates.slice(i,i+5);
+   const results=await Promise.all(batch.map(async m=>{
+    const pair=m.pair||Object.keys(data.prices||{}).find(k=>data.prices[k]===m);
+    if(!pair)return null;
+    try{const cs=await getCandles(pair);return analyze(cs,{...m,pair});}catch(e){return null;}
+   }));
+   out.push(...results.filter(Boolean));
+   status(`Checking candles… ${Math.min(i+5,candidates.length)}/${candidates.length}`);
+  }
+  // Strict breakout matches first; otherwise explicitly show no confirmed matches, not false signals.
+  const matches=out.filter(x=>x.passed).sort((a,b)=>(b.volumeRatio-a.volumeRatio)+(b.change-a.change)/100).slice(0,5);
+  if(!matches.length){
+   $('results').innerHTML='<div class="empty">No coin currently passed all breakout conditions in the scanned candidates.<br><br>That is a valid result — scanner will not force a trade.</div>';
+   status(`Scan complete · ${out.length} markets had enough candle history · 0 confirmed breakouts. Scan checks up to 35 high-activity USDT futures markets per run.`);
+  }else{
+   $('results').innerHTML=matches.map((x,i)=>`<article class="coin"><div class="coinhead"><div><div class="symbol">${i+1}. ${x.pair.replace(/^B-/,'')}</div><div class="hint">CoinDCX Futures · 5m closed candle</div></div><div style="text-align:right"><div class="price">${fmt(x.price)}</div><div style="color:${x.change>=0?'var(--green)':'var(--red)'}">${pct(x.change)} 24h</div></div></div><div class="stats"><div><small>Resistance</small><b>${fmt(x.resistance)}</b></div><div><small>Last closed candle</small><b>${fmt(x.lastClose)}</b></div><div><small>Volume vs avg.</small><b>${(x.volumeRatio*100).toFixed(0)}%</b></div><div><small>New recent high</small><b>${x.newHigh?'YES':'NO'}</b></div></div><span class="pill pass">BREAKOUT CONFIRMED</span></article>`).join('');
+   status(`Scan complete · ${matches.length} confirmed breakout candidate(s). These are candidates, not guaranteed entries.`);
+  }
+ }catch(e){
+  $('results').innerHTML='<div class="empty">Live scan could not complete. No sample or invented coin data is shown.</div>';
+  status(`Could not fetch live data: ${e.message}. Check that the backend is running and CoinDCX public data is reachable.`);
+ }finally{btn.disabled=false;}
+}
+$('scan').addEventListener('click',scan);
+</script></body></html>
